@@ -1,22 +1,23 @@
 import {useEffect} from 'react';
-import {NativeModules, NativeEventEmitter, Alert, Linking} from 'react-native';
+import {NativeModules, NativeEventEmitter, Alert} from 'react-native';
 import {parseNotification} from '../services/notificationParser';
 import {addCardExpense} from '../services/storage';
 import {RawNotificationPayload} from '../types';
 
 const {FinanceNotification} = NativeModules;
-const emitter = new NativeEventEmitter(FinanceNotification);
 
-/**
- * Registers the notification listener on mount.
- * - Checks if the NotificationListenerService permission is granted.
- * - If not, prompts the user to enable it in system settings.
- * - Parses incoming bank notifications and persists them.
- *
- * @param onNewExpense optional callback fired after each successfully parsed expense
- */
+// Guard: módulo nativo só existe no Dev Build com o plugin compilado
+const emitter = FinanceNotification
+  ? new NativeEventEmitter(FinanceNotification)
+  : null;
+
 export function useNotificationListener(onNewExpense?: () => void): void {
   useEffect(() => {
+    if (!FinanceNotification || !emitter) {
+      console.warn('[NotificationListener] Módulo nativo não disponível — rode o build com EAS.');
+      return;
+    }
+
     let mounted = true;
 
     async function init() {

@@ -21,6 +21,7 @@ import {FixedExpense} from '../types';
 export default function ProfileScreen() {
   const [name,          setName]          = useState('');
   const [income,        setIncome]        = useState('');
+  const [savingsGoal,   setSavingsGoal]   = useState('500');
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [newFixedName,  setNewFixedName]  = useState('');
   const [newFixedAmt,   setNewFixedAmt]   = useState('');
@@ -30,16 +31,18 @@ export default function ProfileScreen() {
     const p = getProfile();
     setName(p.name);
     setIncome(p.monthlyIncome > 0 ? String(p.monthlyIncome) : '');
+    setSavingsGoal(p.savingsGoal > 0 ? String(p.savingsGoal) : '500');
     setFixedExpenses(getFixedExpenses());
   }, []);
 
   function handleSaveProfile() {
     const incomeNum = parseFloat(income.replace(',', '.'));
+    const goalNum   = parseFloat(savingsGoal.replace(',', '.'));
     if (isNaN(incomeNum) || incomeNum <= 0) {
       Alert.alert('Renda inválida', 'Informe um valor numérico positivo.');
       return;
     }
-    saveProfile({name: name.trim(), monthlyIncome: incomeNum});
+    saveProfile({name: name.trim(), monthlyIncome: incomeNum, savingsGoal: isNaN(goalNum) ? 500 : goalNum});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -92,6 +95,13 @@ export default function ProfileScreen() {
             placeholder="Ex: 5000.00"
             value={income}
             onChangeText={setIncome}
+            keyboardType="numeric"
+          />
+          <Label>Meta de Economia Mensal (R$)</Label>
+          <Input
+            placeholder="Ex: 500.00"
+            value={savingsGoal}
+            onChangeText={setSavingsGoal}
             keyboardType="numeric"
           />
           <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>

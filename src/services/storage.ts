@@ -27,7 +27,7 @@ function set(key: string, value: unknown): void {
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
 export function getProfile(): UserProfile {
-  return get<UserProfile>(KEYS.PROFILE, {name: '', monthlyIncome: 0});
+  return get<UserProfile>(KEYS.PROFILE, {name: '', monthlyIncome: 0, savingsGoal: 500});
 }
 
 export function saveProfile(profile: UserProfile): void {

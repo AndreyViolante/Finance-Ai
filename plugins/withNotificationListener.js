@@ -53,9 +53,10 @@ function withJavaFiles(config) {
   return withDangerousMod(config, [
     'android',
     cfg => {
-      const srcDir = path.join(__dirname, '..', 'android-src', 'notification');
+      const projectRoot = path.join(__dirname, '..');
+      const srcDir = path.join(projectRoot, 'android-src', 'notification');
       const dstDir = path.join(
-        cfg.modResults.projectRoot,
+        projectRoot,
         'android', 'app', 'src', 'main', 'java', 'com', 'financeai', 'notification',
       );
 

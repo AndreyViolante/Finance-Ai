@@ -19,6 +19,7 @@ export interface FixedExpense {
 export interface UserProfile {
   name: string;
   monthlyIncome: number;
+  savingsGoal: number;
 }
 
 export interface AIDiagnosis {
