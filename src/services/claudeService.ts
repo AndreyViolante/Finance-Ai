@@ -68,8 +68,14 @@ export async function generateDiagnosis(): Promise<AIDiagnosis> {
   const monthKey   = currentMonthKey();
   const prompt     = buildPrompt(monthKey);
 
+  // Suporta ambos formatos: AIzaSy (query param) e AQ. (Bearer token)
+  const isBearer = apiKey.startsWith('AQ.');
+  const url = isBearer
+    ? GEMINI_API_URL
+    : `${GEMINI_API_URL}?key=${apiKey}`;
+
   const response = await axios.post(
-    `${GEMINI_API_URL}?key=${apiKey}`,
+    url,
     {
       contents: [{parts: [{text: prompt}]}],
       generationConfig: {
@@ -78,7 +84,10 @@ export async function generateDiagnosis(): Promise<AIDiagnosis> {
       },
     },
     {
-      headers: {'content-type': 'application/json'},
+      headers: {
+        'content-type': 'application/json',
+        ...(isBearer ? {Authorization: `Bearer ${apiKey}`} : {}),
+      },
       timeout: 30_000,
     },
   );

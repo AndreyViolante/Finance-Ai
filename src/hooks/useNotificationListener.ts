@@ -1,5 +1,7 @@
 import {useEffect} from 'react';
-import {NativeModules, NativeEventEmitter, Alert} from 'react-native';
+import {NativeModules, NativeEventEmitter, Alert, LogBox} from 'react-native';
+
+LogBox.ignoreLogs(['[NotificationListener]']);
 import {parseNotification} from '../services/notificationParser';
 import {addCardExpense} from '../services/storage';
 import {RawNotificationPayload} from '../types';
