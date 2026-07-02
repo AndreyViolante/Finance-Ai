@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,15 @@ import {
 } from '../services/storage';
 import {CardExpense} from '../types';
 
+function parseBRL(raw: string): number {
+  // Handles: "1234,56" "1.234,56" "1234.56"
+  const clean = raw.trim();
+  if (clean.includes(',')) {
+    return parseFloat(clean.replace(/\./g, '').replace(',', '.'));
+  }
+  return parseFloat(clean);
+}
+
 const CARDS = [
   {label: 'Santander •••• XXXX', value: 'Santander •••• XXXX'},
   {label: 'Santander •••• YYYY (Online)', value: 'Santander •••• YYYY'},
@@ -35,6 +44,7 @@ type ModalMode = 'add' | 'edit' | null;
 
 export default function StatementScreen() {
   const [expenses,   setExpenses]   = useState<CardExpense[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalMode,  setModalMode]  = useState<ModalMode>(null);
   const [editTarget, setEditTarget] = useState<CardExpense | null>(null);
 
@@ -49,6 +59,12 @@ export default function StatementScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    load();
+    setRefreshing(false);
+  }
+
   // ── Add manual ──────────────────────────────────────────────────────────────
 
   function openAdd() {
@@ -59,7 +75,7 @@ export default function StatementScreen() {
   }
 
   function handleAdd() {
-    const amt = parseFloat(fieldAmt.replace(',', '.'));
+    const amt = parseBRL(fieldAmt);
     if (!fieldMerch.trim() || isNaN(amt) || amt <= 0) {
       Alert.alert('Dados inválidos', 'Preencha estabelecimento e valor.');
       return;
@@ -93,7 +109,7 @@ export default function StatementScreen() {
 
   function handleSaveEdit() {
     if (!editTarget) return;
-    const amt = parseFloat(fieldAmt.replace(',', '.'));
+    const amt = parseBRL(fieldAmt);
     if (isNaN(amt) || amt <= 0 || !fieldMerch.trim()) {
       Alert.alert('Dados inválidos');
       return;
@@ -142,7 +158,7 @@ export default function StatementScreen() {
       <FlatList
         data={expenses}
         keyExtractor={e => e.id}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor="#6C5CE7" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#6C5CE7" />}
         ListEmptyComponent={
           <Text style={styles.empty}>
             Nenhum gasto ainda.{'\n'}
@@ -171,7 +187,11 @@ export default function StatementScreen() {
       />
 
       {/* Add / Edit Modal */}
-      <Modal visible={!!modalMode} transparent animationType="slide">
+      <Modal
+        visible={!!modalMode}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setModalMode(null); setEditTarget(null); }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>

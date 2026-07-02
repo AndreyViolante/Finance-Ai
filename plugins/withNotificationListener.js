@@ -88,10 +88,10 @@ function withMainApp(config) {
 
     if (!src.includes('NotificationPackage()')) {
       // Expo SDK 51 generated line:
-      // val packages = PackageList(this).packages
+      // return PackageList(this).packages
       src = src.replace(
-        'val packages = PackageList(this).packages',
-        'val packages = PackageList(this).packages\n          packages.add(NotificationPackage())',
+        'return PackageList(this).packages',
+        'val packages = PackageList(this).packages\n            packages.add(NotificationPackage())\n            return packages',
       );
     }
 

@@ -22,12 +22,6 @@ export interface UserProfile {
   savingsGoal: number;
 }
 
-export interface AIDiagnosis {
-  content: string;
-  generatedAt: number;
-  totalSpent: number;
-  monthKey: string;
-}
 
 export interface RawNotificationPayload {
   packageName: string;

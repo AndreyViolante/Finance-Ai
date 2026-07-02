@@ -103,11 +103,12 @@ public class FinanceNotificationService extends NotificationListenerService {
     }
 
     private String getAppName(String packageName) {
-        PackageManager pm = getPackageManager();
         try {
+            PackageManager pm = getPackageManager();
             ApplicationInfo info = pm.getApplicationInfo(packageName, 0);
-            return (String) pm.getApplicationLabel(info);
-        } catch (PackageManager.NameNotFoundException e) {
+            CharSequence label = pm.getApplicationLabel(info);
+            return label != null ? label.toString() : packageName;
+        } catch (Exception e) {
             return packageName;
         }
     }

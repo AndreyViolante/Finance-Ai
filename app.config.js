@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 module.exports = {
   expo: {
     name: 'FinanceAI',
@@ -17,7 +15,6 @@ module.exports = {
       './plugins/withNotificationListener',
     ],
     extra: {
-      geminiApiKey: process.env.GEMINI_API_KEY ?? '',
       eas: {
         projectId: '46d8ba85-d748-4f2f-b390-f0ca5a52d677',
       },

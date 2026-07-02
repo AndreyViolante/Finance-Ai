@@ -35,20 +35,32 @@ export default function ProfileScreen() {
     setFixedExpenses(getFixedExpenses());
   }, []);
 
+  function parseBRL(raw: string): number {
+    const clean = raw.trim();
+    if (clean.includes(',')) {
+      return parseFloat(clean.replace(/\./g, '').replace(',', '.'));
+    }
+    return parseFloat(clean);
+  }
+
   function handleSaveProfile() {
-    const incomeNum = parseFloat(income.replace(',', '.'));
-    const goalNum   = parseFloat(savingsGoal.replace(',', '.'));
+    const incomeNum = parseBRL(income);
+    const goalNum   = parseBRL(savingsGoal);
     if (isNaN(incomeNum) || incomeNum <= 0) {
       Alert.alert('Renda inválida', 'Informe um valor numérico positivo.');
       return;
     }
-    saveProfile({name: name.trim(), monthlyIncome: incomeNum, savingsGoal: isNaN(goalNum) ? 500 : goalNum});
+    if (isNaN(goalNum) || goalNum < 0) {
+      Alert.alert('Meta inválida', 'A meta de economia não pode ser negativa.');
+      return;
+    }
+    saveProfile({name: name.trim(), monthlyIncome: incomeNum, savingsGoal: goalNum});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
   function handleAddFixed() {
-    const amt = parseFloat(newFixedAmt.replace(',', '.'));
+    const amt = parseBRL(newFixedAmt);
     if (!newFixedName.trim() || isNaN(amt) || amt <= 0) {
       Alert.alert('Dados inválidos', 'Preencha nome e valor da despesa fixa.');
       return;

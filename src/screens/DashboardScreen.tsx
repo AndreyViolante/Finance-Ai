@@ -1,25 +1,21 @@
-import React, {useState, useCallback, useEffect} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  AppState,
 } from 'react-native';
 
 import {useNotificationListener} from '../hooks/useNotificationListener';
-import {generateDiagnosis} from '../services/claudeService';
 import {
   totalForMonth,
-  getDiagnosis,
   getProfile,
   getFixedExpenses,
 } from '../services/storage';
-import {AIDiagnosis} from '../types';
 
-function currentMonthKey(): string {
+function getMonthKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -29,20 +25,29 @@ function fmt(value: number): string {
 }
 
 export default function DashboardScreen() {
-  const [loading,    setLoading]    = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [diagnosis,  setDiagnosis]  = useState<AIDiagnosis | null>(null);
+  const [monthKey,   setMonthKey]   = useState(getMonthKey);
   const [totalCard,  setTotalCard]  = useState(0);
-  const [error,      setError]      = useState<string | null>(null);
-
-  const monthKey = currentMonthKey();
+  const [refreshing, setRefreshing] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   function refresh() {
-    setTotalCard(totalForMonth(monthKey));
-    setDiagnosis(getDiagnosis());
+    const key = getMonthKey();
+    setMonthKey(key);
+    setTotalCard(totalForMonth(key));
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+    // Re-check monthKey when app comes back to foreground (month rollover)
+    const sub = AppState.addEventListener('change', next => {
+      if (appState.current.match(/inactive|background/) && next === 'active') {
+        refresh();
+      }
+      appState.current = next;
+    });
+    return () => sub.remove();
+  }, []);
+
   useNotificationListener(refresh);
 
   const onRefresh = useCallback(() => {
@@ -51,42 +56,24 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, []);
 
-  async function handleGenerateDiagnosis() {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await generateDiagnosis();
-      setDiagnosis(result);
-      setTotalCard(totalForMonth(monthKey));
-    } catch (err: any) {
-      setError(err?.message ?? 'Erro desconhecido');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const profile     = getProfile();
-  const fixedTotal  = getFixedExpenses().reduce((s, e) => s + e.amount, 0);
-  const savingsGoal = profile.savingsGoal ?? 500;
-
-  // Quanto pode gastar no cartão sem comprometer a meta
+  const profile      = getProfile();
+  const fixedTotal   = getFixedExpenses().reduce((s, e) => s + e.amount, 0);
+  const savingsGoal  = profile.savingsGoal ?? 500;
   const spendingBudget = profile.monthlyIncome - fixedTotal - savingsGoal;
   const remaining      = spendingBudget - totalCard;
-  const progress       = spendingBudget > 0
-    ? Math.min(totalCard / spendingBudget, 1)
-    : 1;
+  const progress       = spendingBudget > 0 ? Math.min(totalCard / spendingBudget, 1) : 1;
 
-  // Status: verde < 70% | amarelo 70–90% | vermelho > 90%
-  const goalStatus =
-    progress < 0.7 ? 'ok' :
-    progress < 0.9 ? 'warning' : 'danger';
-
+  const goalStatus  = progress < 0.7 ? 'ok' : progress < 0.9 ? 'warning' : 'danger';
   const statusColor = {ok: '#00b894', warning: '#fdcb6e', danger: '#d63031'}[goalStatus];
   const statusEmoji = {ok: '✅', warning: '⚠️', danger: '🚨'}[goalStatus];
-  const statusMsg   =
-    remaining >= 0
-      ? `Você ainda pode gastar ${fmt(remaining)} este mês.`
-      : `Você ultrapassou o limite em ${fmt(Math.abs(remaining))}!`;
+  const statusMsg   = remaining >= 0
+    ? `Você ainda pode gastar ${fmt(remaining)} este mês.`
+    : `Você ultrapassou o limite em ${fmt(Math.abs(remaining))}!`;
+
+  const totalCommitted = fixedTotal + totalCard + savingsGoal;
+  const percentCommitted = profile.monthlyIncome > 0
+    ? (totalCommitted / profile.monthlyIncome) * 100
+    : 0;
 
   return (
     <ScrollView
@@ -104,7 +91,6 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {/* Barra de progresso */}
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, {width: `${progress * 100}%` as any, backgroundColor: statusColor}]} />
         </View>
@@ -113,56 +99,44 @@ export default function DashboardScreen() {
 
         <View style={styles.goalDetails}>
           <GoalDetail label="Orçamento p/ gastos" value={fmt(spendingBudget)} />
-          <GoalDetail label="Já gastou" value={fmt(totalCard)} />
-          <GoalDetail label="Restante" value={fmt(remaining)} highlight={statusColor} />
+          <GoalDetail label="Já gastou"           value={fmt(totalCard)} />
+          <GoalDetail label="Restante"            value={fmt(remaining)} highlight={statusColor} />
         </View>
       </View>
 
-      {/* ── Summary Cards ── */}
+      {/* ── Cards de resumo ── */}
       <View style={styles.row}>
-        <SummaryCard label="Gastos no Cartão" value={fmt(totalCard)}            color="#e17055" />
-        <SummaryCard label="Despesas Fixas"   value={fmt(fixedTotal)}           color="#fdcb6e" />
+        <SummaryCard label="Gastos no Cartão" value={fmt(totalCard)}             color="#e17055" />
+        <SummaryCard label="Despesas Fixas"   value={fmt(fixedTotal)}            color="#fdcb6e" />
       </View>
       <View style={styles.row}>
         <SummaryCard label="Renda Mensal"     value={fmt(profile.monthlyIncome)} color="#00b894" />
         <SummaryCard label="Guardando"        value={fmt(savingsGoal)}           color="#a29bfe" />
       </View>
 
-      {/* ── AI Button ── */}
-      <TouchableOpacity
-        style={[styles.aiButton, loading && styles.aiButtonDisabled]}
-        onPress={handleGenerateDiagnosis}
-        disabled={loading}>
-        {loading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.aiButtonText}>✨ Analisar com IA</Text>
-        }
-      </TouchableOpacity>
+      {/* ── Resumo financeiro ── */}
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>📋 Resumo do Mês</Text>
 
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
+        <Row label="Renda"          value={fmt(profile.monthlyIncome)} color="#00b894" />
+        <Row label="Despesas fixas" value={`- ${fmt(fixedTotal)}`}     color="#fdcb6e" />
+        <Row label="Gastos cartão"  value={`- ${fmt(totalCard)}`}      color="#e17055" />
+        <Row label="Meta economia"  value={`- ${fmt(savingsGoal)}`}    color="#a29bfe" />
 
-      {/* ── Diagnosis ── */}
-      {diagnosis && (
-        <View style={styles.diagnosisCard}>
-          <Text style={styles.diagnosisTitle}>Diagnóstico — {diagnosis.monthKey}</Text>
-          <Text style={styles.diagnosisDate}>
-            Gerado em {new Date(diagnosis.generatedAt).toLocaleString('pt-BR')}
-          </Text>
-          <Text style={styles.diagnosisContent}>{diagnosis.content}</Text>
-        </View>
-      )}
+        <View style={styles.divider} />
 
-      {!diagnosis && !loading && (
-        <View style={styles.emptyHint}>
-          <Text style={styles.emptyHintText}>
-            Toque em "Analisar com IA" para obter um diagnóstico financeiro personalizado.
-          </Text>
-        </View>
-      )}
+        <Row
+          label="Saldo livre"
+          value={fmt(profile.monthlyIncome - totalCommitted)}
+          color={profile.monthlyIncome - totalCommitted >= 0 ? '#00b894' : '#d63031'}
+          bold
+        />
+
+        <Text style={styles.percentText}>
+          {percentCommitted.toFixed(1)}% da renda comprometida
+        </Text>
+      </View>
+
     </ScrollView>
   );
 }
@@ -185,6 +159,15 @@ function SummaryCard({label, value, color}: {label: string; value: string; color
   );
 }
 
+function Row({label, value, color, bold}: {label: string; value: string; color: string; bold?: boolean}) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={[styles.summaryLabel, bold && {fontWeight: '700', color: '#fff'}]}>{label}</Text>
+      <Text style={[styles.summaryValue, {color}, bold && {fontSize: 16}]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#0f0f23', padding: 16},
 
@@ -195,54 +178,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1.5,
   },
-  goalHeader:    {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12},
-  goalTitle:     {color: '#fff', fontSize: 15, fontWeight: '700'},
-  goalBadge: {
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#2d2d44',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  progressFill:  {height: '100%', borderRadius: 4},
-  goalMsg:       {fontSize: 13, fontWeight: '600', marginBottom: 14},
-  goalDetails:   {flexDirection: 'row', justifyContent: 'space-between'},
-  goalDetailItem:{alignItems: 'center'},
-  goalDetailLabel:{color: '#636e72', fontSize: 10, marginBottom: 2},
-  goalDetailValue:{color: '#dfe6e9', fontSize: 13, fontWeight: '700'},
+  goalHeader:      {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12},
+  goalTitle:       {color: '#fff', fontSize: 15, fontWeight: '700'},
+  goalBadge:       {borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, fontSize: 12, fontWeight: '700', color: '#fff', overflow: 'hidden'},
+  progressBar:     {height: 8, backgroundColor: '#2d2d44', borderRadius: 4, overflow: 'hidden', marginBottom: 10},
+  progressFill:    {height: '100%', borderRadius: 4},
+  goalMsg:         {fontSize: 13, fontWeight: '600', marginBottom: 14},
+  goalDetails:     {flexDirection: 'row', justifyContent: 'space-between'},
+  goalDetailItem:  {alignItems: 'center'},
+  goalDetailLabel: {color: '#636e72', fontSize: 10, marginBottom: 2},
+  goalDetailValue: {color: '#dfe6e9', fontSize: 13, fontWeight: '700'},
 
   row:       {flexDirection: 'row', gap: 12, marginBottom: 12},
-  card: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 14,
-    borderLeftWidth: 4,
-  },
+  card:      {flex: 1, backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, borderLeftWidth: 4},
   cardLabel: {color: '#a0a0b0', fontSize: 12, marginBottom: 4},
   cardValue: {fontSize: 18, fontWeight: '700'},
 
-  aiButton:         {backgroundColor: '#6C5CE7', borderRadius: 12, padding: 16, alignItems: 'center', marginVertical: 16},
-  aiButtonDisabled: {opacity: 0.6},
-  aiButtonText:     {color: '#fff', fontSize: 16, fontWeight: '700'},
-
-  errorBox:  {backgroundColor: '#3d1c1c', borderRadius: 8, padding: 12, marginBottom: 12},
-  errorText: {color: '#ff7675', fontSize: 13},
-
-  diagnosisCard:    {backgroundColor: '#1a1a2e', borderRadius: 12, padding: 16, marginBottom: 16},
-  diagnosisTitle:   {color: '#a29bfe', fontSize: 16, fontWeight: '700', marginBottom: 4},
-  diagnosisDate:    {color: '#636e72', fontSize: 11, marginBottom: 12},
-  diagnosisContent: {color: '#dfe6e9', fontSize: 14, lineHeight: 22},
-
-  emptyHint:     {backgroundColor: '#1a1a2e', borderRadius: 12, padding: 20, alignItems: 'center', marginTop: 8},
-  emptyHintText: {color: '#636e72', textAlign: 'center', lineHeight: 22},
+  summaryCard:  {backgroundColor: '#1a1a2e', borderRadius: 12, padding: 16, marginBottom: 16},
+  summaryTitle: {color: '#a29bfe', fontSize: 15, fontWeight: '700', marginBottom: 14},
+  summaryRow:   {flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10},
+  summaryLabel: {color: '#a0a0b0', fontSize: 13},
+  summaryValue: {fontSize: 13, fontWeight: '600'},
+  divider:      {height: 1, backgroundColor: '#2d2d44', marginVertical: 10},
+  percentText:  {color: '#636e72', fontSize: 11, textAlign: 'right', marginTop: 8},
 });

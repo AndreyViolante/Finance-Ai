@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 import {NativeModules, NativeEventEmitter, Alert, LogBox} from 'react-native';
 
 LogBox.ignoreLogs(['[NotificationListener]']);
@@ -8,19 +8,20 @@ import {RawNotificationPayload} from '../types';
 
 const {FinanceNotification} = NativeModules;
 
-// Guard: módulo nativo só existe no Dev Build com o plugin compilado
 const emitter = FinanceNotification
   ? new NativeEventEmitter(FinanceNotification)
   : null;
 
 export function useNotificationListener(onNewExpense?: () => void): void {
+  // Stable ref — listener never re-subscribes when caller re-renders
+  const callbackRef = useRef(onNewExpense);
+  useEffect(() => { callbackRef.current = onNewExpense; }, [onNewExpense]);
+
   useEffect(() => {
     if (!FinanceNotification || !emitter) {
       console.warn('[NotificationListener] Módulo nativo não disponível — rode o build com EAS.');
       return;
     }
-
-    let mounted = true;
 
     async function init() {
       try {
@@ -51,18 +52,14 @@ export function useNotificationListener(onNewExpense?: () => void): void {
     const subscription = emitter.addListener(
       'onBankNotification',
       (payload: RawNotificationPayload) => {
-        if (!mounted) return;
         const expense = parseNotification(payload);
         if (expense) {
           addCardExpense(expense);
-          onNewExpense?.();
+          callbackRef.current?.();
         }
       },
     );
 
-    return () => {
-      mounted = false;
-      subscription.remove();
-    };
-  }, [onNewExpense]);
+    return () => subscription.remove();
+  }, []); // subscribe once; callback updates via ref
 }

@@ -1,5 +1,5 @@
 import {MMKV} from 'react-native-mmkv';
-import {CardExpense, FixedExpense, UserProfile, AIDiagnosis} from '../types';
+import {CardExpense, FixedExpense, UserProfile} from '../types';
 
 const store = new MMKV({id: 'finance-ai-store'});
 
@@ -9,7 +9,6 @@ const KEYS = {
   PROFILE:        'profile',
   FIXED_EXPENSES: 'fixed_expenses',
   CARD_EXPENSES:  'card_expenses',
-  AI_DIAGNOSIS:   'ai_diagnosis',
 } as const;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -96,12 +95,3 @@ export function totalForMonth(monthKey: string): number {
   return getExpensesForMonth(monthKey).reduce((s, e) => s + e.amount, 0);
 }
 
-// ─── AI Diagnosis ─────────────────────────────────────────────────────────────
-
-export function getDiagnosis(): AIDiagnosis | null {
-  return get<AIDiagnosis | null>(KEYS.AI_DIAGNOSIS, null);
-}
-
-export function saveDiagnosis(diagnosis: AIDiagnosis): void {
-  set(KEYS.AI_DIAGNOSIS, diagnosis);
-}
