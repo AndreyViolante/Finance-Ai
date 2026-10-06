@@ -1,14 +1,16 @@
 import {RawNotificationPayload, CardExpense} from '../types';
+import {SANTANDER_CARDS} from '../config/cards';
 
 // ─── Cartões monitorados ──────────────────────────────────────────────────────
 
 /**
  * Apenas notificações do Santander que mencionem um desses finais de cartão
  * serão capturadas. Outros bancos não têm restrição de cartão.
+ * Sem cartões configurados no .env, todas as notificações do Santander passam.
  */
 const SANTANDER_PACKAGE = 'br.com.santander.benfico';
 
-const ALLOWED_SANTANDER_CARDS = [];
+const ALLOWED_SANTANDER_CARDS = SANTANDER_CARDS;
 
 // ─── Regex Patterns ───────────────────────────────────────────────────────────
 
@@ -31,7 +33,7 @@ export function parseNotification(
   const combined = `${payload.title} ${payload.text}`.trim();
 
   // Filtro Santander: só captura se mencionar um dos cartões permitidos
-  if (payload.packageName === SANTANDER_PACKAGE) {
+  if (payload.packageName === SANTANDER_PACKAGE && ALLOWED_SANTANDER_CARDS.length > 0) {
     const mentionsAllowedCard = ALLOWED_SANTANDER_CARDS.some(card =>
       combined.includes(card),
     );

@@ -19,6 +19,7 @@ import {
   totalForMonth,
 } from '../services/storage';
 import {CardExpense} from '../types';
+import {SANTANDER_CARDS} from '../config/cards';
 
 function parseBRL(raw: string): number {
   // Handles: "1234,56" "1.234,56" "1234.56"
@@ -30,8 +31,10 @@ function parseBRL(raw: string): number {
 }
 
 const CARDS = [
-  {label: 'Santander •••• XXXX', value: 'Santander •••• XXXX'},
-  {label: 'Santander •••• YYYY (Online)', value: 'Santander •••• YYYY'},
+  ...SANTANDER_CARDS.map(card => ({
+    label: `Santander •••• ${card}`,
+    value: `Santander •••• ${card}`,
+  })),
   {label: 'Outro', value: 'Manual'},
 ];
 

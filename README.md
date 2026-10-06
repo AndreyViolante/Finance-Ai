@@ -48,10 +48,21 @@ Aplicativo Android de finanças pessoais que captura automaticamente gastos via 
 ### Instalação
 
 ```bash
-git clone https://github.com/AndreyViolante/finance-ai.git
-cd finance-ai
+git clone https://github.com/AndreyViolante/Finance-Ai.git
+cd Finance-Ai
 npm install
 ```
+
+### Configuração
+
+Copie o `.env.example` para `.env` e informe os finais dos cartões do Santander que o app deve capturar:
+
+```bash
+EXPO_PUBLIC_SANTANDER_CARDS=1234,5678
+```
+
+O `.env` não vai para o git. Em builds na nuvem do EAS, cadastre a mesma variável no projeto
+(`eas env:create`). Sem cartões configurados, todas as notificações do Santander são capturadas.
 
 ### Build de desenvolvimento
 
